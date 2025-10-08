@@ -73,8 +73,8 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             cd ~/currency-api
             echo "🛑 Останавливаем старые контейнеры"
-            docker-compose down
+            docker compose down
             echo "🚀 Запускаем новые контейнеры"
-            docker-compose up -d --build
+            docker compose up -d --build
           EOF
       
