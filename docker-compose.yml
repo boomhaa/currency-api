@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    image: currency-api
+    container_name: currency-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - currency-network
+
+networks:
+  currency-network:
+    driver: bridge
+
