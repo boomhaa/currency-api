@@ -52,6 +52,7 @@ tasks.withType<ShadowJar> {
 
 tasks.register<Copy>("copyJarToRoot"){
     dependsOn("shadowJar")
+    doNotTrackState("Copying to project root may include unreadable or unmanaged files")
     val jarFile = layout.buildDirectory.file("libs/currency-api.jar")
     from(jarFile)
     into(project.rootDir)
