@@ -1,0 +1,80 @@
+name: CI/CD pipeline run
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: 🔧 Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - name: 🔨 Build shadowJar
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean shadowJar --no-daemon
+
+      - name: 📦 Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: currency-api
+          path: build/libs/*.jar
+          
+  deploy:
+    name: 🚀 Deploy to Server
+    runs-on: ubuntu-latest
+    needs: [ build ]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: currency-api
+          path: app
+          
+      - name: 🔐 Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 📂 Create remote directory
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p ~/currency-api"
+
+      - name: 📤 Copy files to server
+        run: |
+          scp -i ~/.ssh/deploy_key app/*.jar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/currency-api/currency-api.jar
+          scp -i ~/.ssh/deploy_key docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/currency-api/docker-compose.yml
+          scp -i ~/.ssh/deploy_key Dockerfile ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/currency-api/Dockerfile
+
+      - name: 🐳 Create Docker Volume
+        run: |
+           ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "docker volume create postgres_data"
+
+      - name: 🚀 SSH Deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd ~/currency-api
+            echo "🛑 Останавливаем старые контейнеры"
+            docker-compose down
+            echo "🚀 Запускаем новые контейнеры"
+            docker-compose up -d --build
+          EOF
+      
