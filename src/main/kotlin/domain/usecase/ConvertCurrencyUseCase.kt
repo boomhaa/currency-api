@@ -10,7 +10,7 @@ class ConvertCurrencyUseCase(
         val toRate = repository.getRate(to)
 
         return if (fromRate != null && toRate != null){
-            val res = amount / fromRate * toRate
+            val res = amount * fromRate / toRate
             Result.success(res)
         } else{
             Result.failure(IllegalArgumentException("Invalid currency code"))
